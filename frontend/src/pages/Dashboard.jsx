@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useDocumentStore } from '../store/useDocumentStore'
 import { 
   UploadCloud, 
   FileText, 
@@ -7,24 +8,44 @@ import {
   MessageSquareShare, 
   Search, 
   Layers,
-  Database,
-  Calendar
+  AlertTriangle
 } from 'lucide-react'
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [dragging, setDragging] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
 
-  // Mock document database
-  const [documents, setDocuments] = useState([
-    { id: '1', filename: 'Attention_Is_All_You_Need.pdf', size: '2.1 MB', pages: 15, status: 'processed', date: '2026-07-28' },
-    { id: '2', filename: 'ResNet_Deep_Residual_Learning.pdf', size: '4.8 MB', pages: 12, status: 'processed', date: '2026-07-27' },
-    { id: '3', filename: 'GPT4_Technical_Report.pdf', size: '12.4 MB', pages: 98, status: 'processing', date: '2026-07-29' },
-    { id: '4', filename: 'BERT_Pretraining_of_Transformers.pdf', size: '1.2 MB', pages: 16, status: 'failed', date: '2026-07-25' }
-  ])
+  // Zustand Store bindings
+  const { 
+    documents, 
+    loading, 
+    error, 
+    uploading, 
+    uploadProgress, 
+    fetchDocuments, 
+    uploadDocument, 
+    deleteDocument 
+  } = useDocumentStore()
+
+  // 1. Initial documents load
+  useEffect(() => {
+    fetchDocuments()
+  }, [])
+
+  // 2. Poll document statuses if any is still pending/processing
+  useEffect(() => {
+    const hasActiveTasks = documents.some(
+      (doc) => doc.status === 'pending' || doc.status === 'processing'
+    )
+    if (!hasActiveTasks) return
+
+    const interval = setInterval(() => {
+      fetchDocuments()
+    }, 4000)
+
+    return () => clearInterval(interval)
+  }, [documents, fetchDocuments])
 
   const handleDragOver = (e) => {
     e.preventDefault()
@@ -35,55 +56,50 @@ export default function Dashboard() {
     setDragging(false)
   }
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault()
     setDragging(false)
     const files = e.dataTransfer.files
     if (files.length > 0) {
-      simulateUpload(files[0].name)
+      await handleUpload(files[0])
     }
   }
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const files = e.target.files
     if (files.length > 0) {
-      simulateUpload(files[0].name)
+      await handleUpload(files[0])
     }
   }
 
-  const simulateUpload = (name) => {
-    setUploading(true)
-    setUploadProgress(0)
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setUploading(false)
-          setDocuments((old) => [
-            {
-              id: String(old.length + 1),
-              filename: name,
-              size: '4.5 MB',
-              pages: 32,
-              status: 'processed',
-              date: new Date().toISOString().split('T')[0]
-            },
-            ...old
-          ])
-          return 100
-        }
-        return prev + 10
-      })
-    }, 150)
+  const handleUpload = async (file) => {
+    try {
+      await uploadDocument(file)
+    } catch (err) {
+      // Error is stored inside Zustand store
+    }
   }
 
-  const handleDelete = (id) => {
-    setDocuments(documents.filter(doc => doc.id !== id))
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this research paper?")) {
+      try {
+        await deleteDocument(id)
+      } catch (err) {
+        // Handle delete error if needed
+      }
+    }
   }
 
   const handleStartChat = (doc) => {
-    // Navigate to a new chat with this document initialized
-    navigate(`/chat/${doc.id}`)
+    navigate(`/chat/${doc._id}`)
+  }
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
   const filteredDocs = documents.filter(doc => 
@@ -98,6 +114,14 @@ export default function Dashboard() {
         <p className="text-sm text-slate-400 mt-1">Upload research documents, parse mathematical concepts, and chat via voice.</p>
       </div>
 
+      {/* Error Alert Display */}
+      {error && (
+        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <span className="font-semibold">{error}</span>
+        </div>
+      )}
+
       {/* Drag & Drop Upload Zone */}
       <div 
         onDragOver={handleDragOver}
@@ -111,7 +135,6 @@ export default function Dashboard() {
         <input 
           type="file" 
           id="file-upload" 
-          multiple 
           accept=".pdf" 
           onChange={handleFileSelect} 
           className="hidden" 
@@ -177,13 +200,15 @@ export default function Dashboard() {
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-xs">
                 {filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-900/20 transition-colors group">
+                  <tr key={doc._id} className="hover:bg-slate-900/20 transition-colors group">
                     <td className="px-6 py-4 font-semibold text-slate-200 flex items-center gap-3">
                       <FileText className="h-4 w-4 text-brand-400" />
                       <span className="truncate max-w-xs sm:max-w-md">{doc.filename}</span>
                     </td>
-                    <td className="px-6 py-4 text-slate-400">{doc.size}</td>
-                    <td className="px-6 py-4 text-slate-400">{doc.pages} pgs</td>
+                    <td className="px-6 py-4 text-slate-400">{formatFileSize(doc.file_size)}</td>
+                    <td className="px-6 py-4 text-slate-400">
+                      {doc.page_count !== null && doc.page_count !== undefined ? `${doc.page_count} pgs` : '--'}
+                    </td>
                     <td className="px-6 py-4">
                       {doc.status === 'processed' && (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -193,6 +218,11 @@ export default function Dashboard() {
                       {doc.status === 'processing' && (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
                           Parsing
+                        </span>
+                      )}
+                      {doc.status === 'pending' && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse">
+                          Queued
                         </span>
                       )}
                       {doc.status === 'failed' && (
@@ -212,7 +242,7 @@ export default function Dashboard() {
                           <MessageSquareShare className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(doc.id)}
+                          onClick={() => handleDelete(doc._id)}
                           className="p-1.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-900 rounded-lg cursor-pointer transition-colors"
                           title="Delete Paper"
                         >
@@ -223,10 +253,18 @@ export default function Dashboard() {
                   </tr>
                 ))}
 
-                {filteredDocs.length === 0 && (
+                {filteredDocs.length === 0 && !loading && (
                   <tr>
                     <td colSpan="5" className="px-6 py-10 text-center text-slate-500 italic">
                       No research papers found in library.
+                    </td>
+                  </tr>
+                )}
+
+                {loading && documents.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-10 text-center text-slate-500">
+                      Loading publications...
                     </td>
                   </tr>
                 )}

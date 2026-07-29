@@ -7,12 +7,42 @@ from app.database.connection import get_mongodb, get_qdrant
 
 
 # Mock databases for fast unit testing
-class MockMongoDatabase:
+class MockMongoCollection:
+    async def insert_one(self, data):
+        from bson import ObjectId
+        class InsertResult:
+            inserted_id = ObjectId("507f1f77bcf86cd799439011")
+        return InsertResult()
 
+    async def find_one(self, query):
+        return None
+
+    def find(self, query):
+        class Cursor:
+            async def to_list(self, length):
+                return []
+        return Cursor()
+
+    async def update_one(self, query, update):
+        class UpdateResult:
+            modified_count = 1
+        return UpdateResult()
+
+    async def delete_one(self, query):
+        class DeleteResult:
+            deleted_count = 1
+        return DeleteResult()
+
+
+class MockMongoDatabase:
     async def command(self, cmd: str):
         if cmd == "ping":
             return {"ok": 1}
         raise ValueError(f"Unknown command {cmd}")
+
+    def __getitem__(self, name):
+        return MockMongoCollection()
+
 
 
 class MockQdrantClient:
