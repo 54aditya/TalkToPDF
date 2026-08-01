@@ -8,7 +8,7 @@
   }
 }
 
-/* Custom scrollbars for a modern interface */
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -22,7 +22,7 @@
   @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
 }
 
-/* Glassmorphism utility */
+
 .glass {
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(12px);

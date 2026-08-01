@@ -9,6 +9,7 @@ from app.core.exceptions import ValidationException, NotFoundException
 from app.database.connection import get_mongodb
 from app.database.repository import DocumentRepository
 from app.workers.tasks import process_document_task
+from app.services.qdrant_service import delete_collection
 from app.core.logging import logger
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
@@ -20,17 +21,14 @@ async def upload_document(
     db: AsyncIOMotorDatabase = Depends(get_mongodb),
 ):
     """Uploads a PDF, saves it to disk, saves metadata in MongoDB, and schedules background parsing."""
-    # 1. Validate file extension
     if not file.filename.endswith(".pdf") and file.content_type != "application/pdf":
         raise ValidationException("Only PDF documents are supported.")
 
-    # 2. Prepare storage directories
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     file_id = str(uuid.uuid4())
     safe_filename = f"{file_id}_{os.path.basename(file.filename)}"
     storage_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
 
-    # 3. Write file bytes to disk
     logger.info(f"Uploading file: {file.filename} saving to {storage_path}")
     try:
         with open(storage_path, "wb") as buffer:
@@ -41,10 +39,8 @@ async def upload_document(
     finally:
         await file.close()
 
-    # 4. Get file size for metadata
     file_size = os.path.getsize(storage_path)
 
-    # 5. Save metadata structure to MongoDB
     repo = DocumentRepository(db)
     doc_data = {
         "filename": file.filename,
@@ -58,13 +54,11 @@ async def upload_document(
     created_doc = await repo.create(doc_data)
     doc_id = created_doc["_id"]
 
-    # 6. Trigger background parsing task via Celery
     try:
         process_document_task.delay(doc_id)
         logger.info(f"Scheduled background parser for document {doc_id}")
     except Exception as e:
         logger.error(f"Failed to queue background celery task for {doc_id}: {str(e)}")
-        # In a real-world scenario, we still want to keep the metadata but flag it
         await repo.update(doc_id, {"status": "failed"})
 
     return {
@@ -98,7 +92,6 @@ async def delete_document(document_id: str, db: AsyncIOMotorDatabase = Depends(g
     if not doc:
         raise NotFoundException(f"Document with ID {document_id} not found.")
 
-    # 1. Remove file from storage
     storage_path = doc.get("storage_path")
     if storage_path and os.path.exists(storage_path):
         try:
@@ -107,9 +100,12 @@ async def delete_document(document_id: str, db: AsyncIOMotorDatabase = Depends(g
         except Exception as e:
             logger.error(f"Failed to delete disk storage file: {str(e)}")
 
-    # 2. Remove document entry from MongoDB
     deleted = await repo.delete(document_id)
     
-    # 3. Note: In future phases, we will also clean vectors in Qdrant matching this document ID
+    try:
+        delete_collection(document_id)
+        logger.info(f"Deleted Qdrant collection for document {document_id}")
+    except Exception as e:
+        logger.warning(f"Failed to delete Qdrant collection for document {document_id}: {str(e)}")
     
     return {"message": "Document successfully deleted.", "document_id": document_id}

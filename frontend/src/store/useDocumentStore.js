@@ -24,7 +24,7 @@ export const useDocumentStore = create((set, get) => ({
       await api.uploadDocument(file, (progress) => {
         set({ uploadProgress: progress })
       })
-      // Refresh documents index
+      
       await get().fetchDocuments()
       set({ uploading: false, uploadProgress: 0 })
     } catch (err) {

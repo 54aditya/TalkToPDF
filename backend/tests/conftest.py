@@ -6,7 +6,6 @@ from app.main import app
 from app.database.connection import get_mongodb, get_qdrant
 
 
-# Mock databases for fast unit testing
 class MockMongoCollection:
     async def insert_one(self, data):
         from bson import ObjectId
@@ -54,7 +53,6 @@ class MockQdrantClient:
 @pytest.fixture
 def test_app() -> FastAPI:
     """Fixture override of DB clients for unit testing."""
-    # Override dependencies to inject mock clients
     app.dependency_overrides[get_mongodb] = lambda: MockMongoDatabase()
     app.dependency_overrides[get_qdrant] = lambda: MockQdrantClient()
     return app
@@ -63,7 +61,8 @@ def test_app() -> FastAPI:
 @pytest.fixture
 async def client(test_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
     """Provides an asynchronous HTTP test client."""
+    from httpx import ASGITransport
     async with AsyncClient(
-        app=test_app, base_url="http://testserver"
+        transport=ASGITransport(app=test_app), base_url="http://testserver"
     ) as async_client:
         yield async_client

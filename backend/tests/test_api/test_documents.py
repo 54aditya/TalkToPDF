@@ -27,7 +27,6 @@ async def test_upload_valid_pdf_file(client: AsyncClient):
     pdf_content = b"%PDF-1.4 mock pdf structure content"
     files = {"file": ("sample.pdf", io.BytesIO(pdf_content), "application/pdf")}
     
-    # Mocking storage dir output paths to avoid pollution
     with patch("os.makedirs"), patch("shutil.copyfileobj"), patch("os.path.getsize", return_value=1234):
         response = await client.post("/api/v1/documents/upload", files=files)
         assert response.status_code == 202

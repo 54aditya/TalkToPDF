@@ -1,27 +1,28 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { KeyRound, Mail, User, Sparkles, ArrowRight } from 'lucide-react'
+import { KeyRound, Mail, User, Sparkles, ArrowRight, AlertTriangle } from 'lucide-react'
+import { useAuthStore } from '../store/useAuthStore'
 
 export default function Register() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { register, loading, error } = useAuthStore()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    setLoading(true)
-    // Registration logic goes here in later phases.
-    setTimeout(() => {
-      setLoading(false)
-      navigate('/login')
-    }, 800)
+    try {
+      await register(fullName, email, password)
+      navigate('/dashboard')
+    } catch {
+      
+    }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 relative overflow-hidden px-4">
-      {/* Background radial effects */}
+      
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-600/10 rounded-full blur-[100px]" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px]" />
 
@@ -79,6 +80,13 @@ export default function Register() {
               />
             </div>
           </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
           <button
             type="submit"

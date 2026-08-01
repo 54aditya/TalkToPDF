@@ -17,14 +17,12 @@ async def health_check(
     qdrant_ok = False
 
     try:
-        # Check MongoDB
         await db.command("ping")
         mongodb_ok = True
     except Exception as e:
         logger.error(f"Healthcheck: MongoDB connection failed: {e}")
 
     try:
-        # Check Qdrant (using its cluster details or simple health query)
         await qdrant.get_collections()
         qdrant_ok = True
     except Exception as e:

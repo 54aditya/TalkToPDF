@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDocumentStore } from '../store/useDocumentStore'
+import { useChatStore } from '../store/useChatStore'
 import { 
   UploadCloud, 
   FileText, 
@@ -8,15 +9,17 @@ import {
   MessageSquareShare, 
   Search, 
   Layers,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react'
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [dragging, setDragging] = useState(false)
+  const [startingChat, setStartingChat] = useState(null)
 
-  // Zustand Store bindings
+  
   const { 
     documents, 
     loading, 
@@ -28,12 +31,14 @@ export default function Dashboard() {
     deleteDocument 
   } = useDocumentStore()
 
-  // 1. Initial documents load
+  const { createSession } = useChatStore()
+
+  
   useEffect(() => {
     fetchDocuments()
   }, [])
 
-  // 2. Poll document statuses if any is still pending/processing
+  
   useEffect(() => {
     const hasActiveTasks = documents.some(
       (doc) => doc.status === 'pending' || doc.status === 'processing'
@@ -76,7 +81,7 @@ export default function Dashboard() {
     try {
       await uploadDocument(file)
     } catch (err) {
-      // Error is stored inside Zustand store
+      
     }
   }
 
@@ -85,13 +90,21 @@ export default function Dashboard() {
       try {
         await deleteDocument(id)
       } catch (err) {
-        // Handle delete error if needed
+        
       }
     }
   }
 
-  const handleStartChat = (doc) => {
-    navigate(`/chat/${doc._id}`)
+  const handleStartChat = async (doc) => {
+    setStartingChat(doc._id)
+    try {
+      const session = await createSession([doc._id])
+      navigate(`/chat/${session._id}`)
+    } catch (err) {
+      console.error('Failed to create session:', err)
+    } finally {
+      setStartingChat(null)
+    }
   }
 
   const formatFileSize = (bytes) => {
@@ -108,13 +121,13 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      {/* Page Header */}
+      
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight">Research Paper Library</h1>
         <p className="text-sm text-slate-400 mt-1">Upload research documents, parse mathematical concepts, and chat via voice.</p>
       </div>
 
-      {/* Error Alert Display */}
+      
       {error && (
         <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl">
           <AlertTriangle className="h-5 w-5 shrink-0" />
@@ -122,7 +135,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Drag & Drop Upload Zone */}
+      
       <div 
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -165,14 +178,14 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Document Library Directory */}
+      
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Layers className="h-5 w-5 text-brand-400" />
             <span>Uploaded Publications ({filteredDocs.length})</span>
           </h2>
-          {/* Search bar */}
+          
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
             <input
@@ -185,7 +198,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Desktop Documents Table */}
+        
         <div className="glass border border-slate-800 rounded-xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">

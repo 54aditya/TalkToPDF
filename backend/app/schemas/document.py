@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class DocumentBase(BaseModel):
     filename: str
     file_size: int
-    status: str = "pending"  # pending, processing, processed, failed
+    status: str = "pending"
     page_count: Optional[int] = None
     summary: Optional[str] = None
 
@@ -23,5 +23,4 @@ class DocumentResponse(DocumentBase):
     class Config:
         populate_by_name = True
         json_encoders = {
-            # Handle object ID parsing or datetime mapping if needed
         }

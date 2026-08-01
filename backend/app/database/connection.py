@@ -18,7 +18,6 @@ class DatabaseManager:
         try:
             self.mongo_client = AsyncIOMotorClient(settings.MONGODB_URL)
             self.mongo_db = self.mongo_client[settings.MONGODB_DB_NAME]
-            # Simple ping to verify connection
             await self.mongo_client.admin.command("ping")
             logger.info("Successfully connected to MongoDB.")
         except Exception as e:
