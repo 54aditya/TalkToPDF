@@ -9,6 +9,7 @@ import {
   FileText, 
   ChevronDown,
   Volume2,
+  VolumeX,
   Loader2,
   AlertTriangle
 } from 'lucide-react'
@@ -37,9 +38,51 @@ export default function Chat() {
   const [sessionError, setSessionError] = useState(null)
   const [docContext, setDocContext] = useState(null)
 
+  const [playingMessageId, setPlayingMessageId] = useState(null)
+  const currentAudioRef = useRef(null)
+
   const messageEndRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
+
+  useEffect(() => {
+    return () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause()
+      }
+    }
+  }, [])
+
+  const playSpeech = async (msgId, text) => {
+    if (playingMessageId === msgId) {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause()
+      }
+      setPlayingMessageId(null)
+      return
+    }
+
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause()
+    }
+
+    setPlayingMessageId(msgId)
+    try {
+      const blob = await api.synthesizeSpeech(text.slice(0, 1200))
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      currentAudioRef.current = audio
+      audio.onended = () => {
+        setPlayingMessageId(null)
+      }
+      audio.onerror = () => {
+        setPlayingMessageId(null)
+      }
+      await audio.play()
+    } catch (err) {
+      setPlayingMessageId(null)
+    }
+  }
 
   
   useEffect(() => {
@@ -302,10 +345,32 @@ export default function Chat() {
                 )}
               </div>
 
-              {/* Citations */}
-              {msg.citations?.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {msg.citations.map((cite, i) => (
+              {/* Listen & Citations Bar */}
+              {(msg.citations?.length > 0 || (msg.role === 'assistant' && msg.content)) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {msg.role === 'assistant' && msg.content && (
+                    <button
+                      onClick={() => playSpeech(msg.id, msg.content)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer border
+                        ${playingMessageId === msg.id
+                          ? 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20 hover:border-rose-500'
+                          : 'bg-brand-500/10 border-brand-500/20 text-brand-400 hover:bg-brand-500/20 hover:border-brand-500'}`}
+                    >
+                      {playingMessageId === msg.id ? (
+                        <>
+                          <VolumeX className="h-3.5 w-3.5 animate-pulse" />
+                          <span>Stop Listening</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="h-3.5 w-3.5" />
+                          <span>Listen Answer</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {msg.citations?.length > 0 && msg.citations.map((cite, i) => (
                     <button
                       key={i}
                       onClick={() => setActiveCitation(activeCitation === cite ? null : cite)}

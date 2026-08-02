@@ -64,7 +64,7 @@ async def transcribe(audio: UploadFile = File(...)):
 
 
 @router.post("/synthesize")
-async def synthesize(request: SynthesizeRequest):
+def synthesize(request: SynthesizeRequest):
     """
     Converts text to speech and returns an audio byte stream.
 

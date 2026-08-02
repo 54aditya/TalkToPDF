@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str
 
     STT_MODEL_NAME: str = "base"
-    TTS_PROVIDER: str = "piper"
-    ELEVENLABS_API_KEY: Optional[str] = None
+    TTS_PROVIDER: str = "elevenlabs"
+    ELEVENLABS_API_KEY: Optional[str] = "sk_53948b5648df4fe6202ab9508673796a799498012568c18b"
     ELEVENLABS_VOICE_ID: Optional[str] = "21m00Tcm4TlvDq8ikWAM"
 
     UPLOAD_DIR: str = "uploads"

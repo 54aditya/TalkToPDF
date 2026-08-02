@@ -9,9 +9,12 @@ Supports two providers (controlled by TTS_PROVIDER setting):
 The service always returns raw WAV or MP3 bytes + the MIME type string.
 """
 import io
+import threading
 from typing import Tuple
 from app.core.config import settings
 from app.core.logging import logger
+
+_tts_lock = threading.Lock()
 
 
 def synthesize_speech(text: str) -> Tuple[bytes, str]:
@@ -65,28 +68,38 @@ def _synthesize_local(text: str) -> Tuple[bytes, str]:
     Local TTS using pyttsx3 (offline, no API key needed).
     Writes to an in-memory WAV buffer via a temporary file.
     """
-    try:
-        import pyttsx3
-        import tempfile
-        import os
+    with _tts_lock:
+        try:
+            import pyttsx3
+            import tempfile
+            import os
 
-        engine = pyttsx3.init()
-        engine.setProperty("rate", 165)
-        engine.setProperty("volume", 0.95)
+            engine = pyttsx3.init()
+            engine.setProperty("rate", 165)
+            engine.setProperty("volume", 0.95)
 
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-            tmp_path = tmp.name
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                tmp_path = tmp.name
 
-        engine.save_to_file(text, tmp_path)
-        engine.runAndWait()
+            engine.save_to_file(text, tmp_path)
+            engine.runAndWait()
 
-        with open(tmp_path, "rb") as f:
-            audio_bytes = f.read()
+            # Wait a split second to ensure system/espeak finishes writing
+            import time
+            time.sleep(0.1)
 
-        os.remove(tmp_path)
-        logger.info(f"Local TTS: synthesized {len(text)} chars → {len(audio_bytes)} bytes WAV")
-        return audio_bytes, "audio/wav"
+            with open(tmp_path, "rb") as f:
+                audio_bytes = f.read()
 
-    except Exception as e:
-        logger.error(f"Local TTS failed: {str(e)}", exc_info=True)
-        raise RuntimeError(f"Text-to-speech synthesis failed: {str(e)}")
+            os.remove(tmp_path)
+            
+            # Explicitly clean up engine to prevent ctypes ReferenceError
+            del engine
+
+            logger.info(f"Local TTS: synthesized {len(text)} chars → {len(audio_bytes)} bytes WAV")
+            return audio_bytes, "audio/wav"
+
+        except Exception as e:
+            logger.error(f"Local TTS failed: {str(e)}", exc_info=True)
+            raise RuntimeError(f"Text-to-speech synthesis failed: {str(e)}")
+
