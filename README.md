@@ -1,4 +1,4 @@
-# AI Voice Research Assistant
+# Talk to PDF
 
 A voice-enabled, RAG (Retrieval-Augmented Generation) powered academic research assistant. This application allows users to upload PDF research papers, index their contents into a vector database, and perform semantic Q&A using both text and voice. The assistant streams back rigorous academic answers with precise page citations and speaks the response back to the user.
 
