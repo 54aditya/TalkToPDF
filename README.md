@@ -103,7 +103,7 @@ GEMINI_API_KEY="your-gemini-api-key"
 STT_MODEL_NAME="base"
 TTS_PROVIDER="local" # Use "elevenlabs" for high-fidelity API
 ELEVENLABS_API_KEY=""
-ELEVENLABS_VOICE_ID="21m00Tcm4TlvDq8ikWAM"
+ELEVENLABS_VOICE_ID="zT03pEAEi0VHKciJODfn"
 ```
 
 ---

@@ -22,8 +22,8 @@ class Settings(BaseSettings):
 
     STT_MODEL_NAME: str = "base"
     TTS_PROVIDER: str = "elevenlabs"
-    ELEVENLABS_API_KEY: Optional[str] = "sk_53948b5648df4fe6202ab9508673796a799498012568c18b"
-    ELEVENLABS_VOICE_ID: Optional[str] = "21m00Tcm4TlvDq8ikWAM"
+    ELEVENLABS_API_KEY: Optional[str] = "sk_041130f2ad6c5c01b1ac31381816d35f7ca7687af5c82cc9"
+    ELEVENLABS_VOICE_ID: Optional[str] = "zT03pEAEi0VHKciJODfn"
 
     UPLOAD_DIR: str = "uploads"
 
